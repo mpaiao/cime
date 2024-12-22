@@ -12,10 +12,6 @@ import stat as statlib
 from argparse import Action
 from contextlib import contextmanager
 
-# pylint: disable=deprecated-module
-# Package distutils was removed from Python beginning in version 3.2
-# from distutils import file_util
-
 # Return this error code if the scripts worked but tests failed
 TESTS_FAILED_ERR_CODE = 100
 logger = logging.getLogger(__name__)
@@ -821,12 +817,10 @@ def run_cmd(
     # or build a relative path and append `sys.path` to import
     # `standard_script_setup`. Providing `PYTHONPATH` fixes protential
     # broken paths in external python.
-    env.update(
-        {
-            "CIMEROOT": f"{get_cime_root()}",
-            "PYTHONPATH": f"{get_cime_root()}:{get_tools_path()}",
-        }
-    )
+    env_pythonpath = os.environ.get("PYTHONPATH", "").split(":")
+    cime_pythonpath = [f"{get_cime_root()}", f"{get_tools_path()}"] + env_pythonpath
+    env["PYTHONPATH"] = ":".join(filter(None, cime_pythonpath))
+    env["CIMEROOT"] = f"{get_cime_root()}"
 
     if timeout:
         with Timeout(timeout):
@@ -1414,17 +1408,31 @@ def safe_copy(src_path, tgt_path, preserve_meta=True):
                 )
 
         if owner_uid == os.getuid():
-            # I am the owner, copy file contents, permissions, and metadata if the system
-            # allows for it.
-            shutil.copy2(src_path, tgt_path)
+            # I am the owner, copy file contents, permissions, and metadata
+            try:
+                shutil.copy2(
+                    src_path,
+                    tgt_path,
+                )
+            # ignore same file error
+            except shutil.SameFileError:
+                pass
         else:
             # I am not the owner, just copy file contents
             shutil.copyfile(src_path, tgt_path)
 
-    else:
+    elif preserve_meta:
         # We are making a new file, copy file contents, permissions, and metadata.
         # This can fail if the underlying directory is not writable by current user.
-        shutil.copy2(src_path, tgt_path)
+        shutil.copy2(
+            src_path,
+            tgt_path,
+        )
+    else:
+        shutil.copy(
+            src_path,
+            tgt_path,
+        )
 
     # If src file was executable, then the tgt file should be too
     st = os.stat(tgt_path)
@@ -1575,7 +1583,7 @@ def get_charge_account(machobj=None, project=None):
 
     >>> import CIME
     >>> import CIME.XML.machines
-    >>> machobj = CIME.XML.machines.Machines(machine="theta")
+    >>> machobj = CIME.XML.machines.Machines(machine="ubuntu-latest")
     >>> project = get_project(machobj)
     >>> charge_account = get_charge_account(machobj, project)
     >>> project == charge_account
@@ -2520,8 +2528,11 @@ def run_bld_cmd_ensure_logging(cmd, arg_logger, from_dir=None, timeout=None):
     expect(stat == 0, filter_unicode(errput))
 
 
-def get_batch_script_for_job(job):
-    return job if "st_archive" in job else "." + job
+def get_batch_script_for_job(job, hidden=None):
+    # this if statement is for backward compatibility
+    if hidden is None:
+        hidden = job != "case.st_archive"
+    return "." + job if hidden else job
 
 
 def string_in_list(_string, _list):

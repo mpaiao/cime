@@ -28,22 +28,6 @@ CIME.XML.batch module
    :undoc-members:
    :show-inheritance:
 
-CIME.XML.compilerblock module
------------------------------
-
-.. automodule:: CIME.XML.compilerblock
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-CIME.XML.compilers module
--------------------------
-
-.. automodule:: CIME.XML.compilers
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 CIME.XML.component module
 -------------------------
 

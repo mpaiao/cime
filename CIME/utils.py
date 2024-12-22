@@ -13,7 +13,8 @@ from argparse import Action
 from contextlib import contextmanager
 
 # pylint: disable=deprecated-module
-from distutils import file_util
+# Package distutils was removed from Python beginning in version 3.2
+# from distutils import file_util
 
 # Return this error code if the scripts worked but tests failed
 TESTS_FAILED_ERR_CODE = 100
@@ -1413,14 +1414,9 @@ def safe_copy(src_path, tgt_path, preserve_meta=True):
                 )
 
         if owner_uid == os.getuid():
-            # I am the owner, copy file contents, permissions, and metadata
-            file_util.copy_file(
-                src_path,
-                tgt_path,
-                preserve_mode=preserve_meta,
-                preserve_times=preserve_meta,
-                verbose=0,
-            )
+            # I am the owner, copy file contents, permissions, and metadata if the system
+            # allows for it.
+            shutil.copy2(src_path, tgt_path)
         else:
             # I am not the owner, just copy file contents
             shutil.copyfile(src_path, tgt_path)
@@ -1428,13 +1424,7 @@ def safe_copy(src_path, tgt_path, preserve_meta=True):
     else:
         # We are making a new file, copy file contents, permissions, and metadata.
         # This can fail if the underlying directory is not writable by current user.
-        file_util.copy_file(
-            src_path,
-            tgt_path,
-            preserve_mode=preserve_meta,
-            preserve_times=preserve_meta,
-            verbose=0,
-        )
+        shutil.copy2(src_path, tgt_path)
 
     # If src file was executable, then the tgt file should be too
     st = os.stat(tgt_path)
